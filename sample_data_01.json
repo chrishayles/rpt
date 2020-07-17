@@ -1,0 +1,28 @@
+{
+    "Name": "My Test Data Set",
+    "Tables": {
+        "Table 01": {
+            "Columns": {
+                "Column 01": {
+                    "Header": "Column 01",
+                    "DataType": "string",
+                    "Nullable": true,
+                    "Delimitter": ",",
+                    "DefaultValue": ""
+                },
+                "Column 02": {
+                    "Header": "Column 02",
+                    "DataType": "string",
+                    "Nullable": true,
+                    "Delimitter": ",",
+                    "DefaultValue": ""
+                }
+            },
+            "Rows": [
+                "one,two",
+                "three,four",
+                "five,six"
+            ]
+        }
+    }
+}
