@@ -2,6 +2,7 @@ package rpt
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -18,30 +19,42 @@ type DBDataSet struct {
 
 func (dbds *DBDataSet) ToJson() []byte {
 
-	output, _ := json.MarshalIndent(dbds, "", "  ")
+	return ToJSON(dbds)
+}
 
+type DBQueryDataSet struct {
+	Name  string
+	Query string
+}
+
+func (dbqds *DBQueryDataSet) ToJson() []byte {
+	output := ToJSON(dbqds)
 	return output
 }
 
 type DataTable struct {
-	Columns map[string]DataColumn
-	Row     []*DataRow
+	Columns     map[string]DataColumn
+	ColSlice    []*DataColumn `json:"-"`
+	Rows        []*DataRow
+	Delimiter   string
+	Constraints []string
 }
 
 type DataColumn struct {
 	Header       string
 	DataType     string
-	Nullable     bool
-	Delimiter    string
+	Constraints  []string
 	DefaultValue interface{}
 }
 
-type DataRow struct {
-	Data string
+type DataRow string
+
+func (dr *DataRow) Print() string {
+	return fmt.Sprint(dr)
 }
 
 func (dr *DataRow) Parse(del string) []string {
-	return strings.Split(dr.Data, del)
+	return strings.Split(dr.Print(), del)
 }
 
 func ImportDBDataSet(filePath string) (*DBDataSet, []error) {

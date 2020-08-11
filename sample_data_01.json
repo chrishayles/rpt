@@ -3,26 +3,26 @@
     "Tables": {
         "Table 01": {
             "Columns": {
-                "Column 01": {
+                "02": {
                     "Header": "Column 01",
-                    "DataType": "string",
-                    "Nullable": true,
-                    "Delimitter": ",",
-                    "DefaultValue": ""
+                    "DataType": "varchar(40)",
+                    "DefaultValue": "",
+                    "Constraints": []
                 },
-                "Column 02": {
+                "01": {
                     "Header": "Column 02",
-                    "DataType": "string",
-                    "Nullable": true,
-                    "Delimitter": ",",
-                    "DefaultValue": ""
+                    "DataType": "varchar(40)",
+                    "Constraints": [],
+                    "DefaultValue": "d-val"
                 }
             },
             "Rows": [
                 "one,two",
                 "three,four",
                 "five,six"
-            ]
+            ],
+            "Delimiter": ",",
+            "Constraints": []
         }
     }
 }
