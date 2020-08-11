@@ -281,47 +281,43 @@ func sanitize(s string) string {
 
 func convertSqlRows(sr *sql.Rows) *SQLOutput {
 
+	output := &SQLOutput{
+		Result: []map[string]interface{}{},
+	}
+
 	if sr != nil {
 
 		cols, _ := sr.Columns()
-		colTypes, _ := sr.ColumnTypes()
-
-		output := &map[string]interface{}{
-			"column_02": nil,
-			"column_01": nil,
-		}
-		output2 := []interface{}{}
-		output3 := struct {
-			column_02 string
-			column_01 string
-		}{}
-
-		for i, c := range cols {
-			//output[c] = nil
-			log.Printf("%d: %s", i, c)
-		}
-
-		for i, c := range colTypes {
-			log.Printf("%d: %s: %s", i, c.Name(), c.ScanType())
-		}
 
 		for sr.Next() {
-			err := sr.Scan(&output3.column_02, &output3.column_01)
-			if err != nil {
+
+			columns := make([]interface{}, len(cols))
+			columnPointers := make([]interface{}, len(cols))
+
+			for i, _ := range columns {
+				columnPointers[i] = &columns[i]
+			}
+
+			if err := sr.Scan(columnPointers...); err != nil {
 				log.Println(err)
 			}
-			log.Printf("output3: %s", output3)
-		}
 
-		log.Printf("output: %s", output)
-		log.Printf("output2: %s", output2)
+			m := make(map[string]interface{})
+			for i, colName := range cols {
+				val := columnPointers[i].(*interface{})
+				m[colName] = *val
+			}
+
+			output.Result = append(output.Result, m)
+		}
 
 	}
 
-	return nil
+	return output
 }
 
 type SQLOutput struct {
+	Result []map[string]interface{}
 }
 
 // func returnProperties(i interface{}) []interface{} {
