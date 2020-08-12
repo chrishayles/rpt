@@ -319,7 +319,3 @@ func convertSqlRows(sr *sql.Rows) *SQLOutput {
 type SQLOutput struct {
 	Result []map[string]interface{}
 }
-
-// func returnProperties(i interface{}) []interface{} {
-// 	for i.
-// }

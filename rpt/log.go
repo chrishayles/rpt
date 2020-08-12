@@ -141,6 +141,33 @@ func (f *FileOutput) GetDescription() string {
 	return f.Description
 }
 
+// CONSOLE OUTPUT
+
+type ConsoleOutput struct {
+	Description string
+	ToProcess   chan *Log
+}
+
+func (c *ConsoleOutput) WriteLog(l *Log) {
+
+}
+
+func (c *ConsoleOutput) WriteMetric(l *MetricCollection) {
+
+}
+
+func (c *ConsoleOutput) Connect() error {
+
+	// No implementation needed.
+
+	return nil
+}
+
+func (c *ConsoleOutput) GetDescription() string {
+
+	return c.Description
+}
+
 // METRIC
 
 type Metric struct {
@@ -151,4 +178,17 @@ type Metric struct {
 
 type MetricCollection struct {
 	Metrics []*Metric
+}
+
+func (mc *MetricCollection) AddMetric(m *Metric) {
+	mc.Metrics = append(mc.Metrics, m)
+}
+
+func NewMetricCollection() (*MetricCollection, error) {
+
+	m := []*Metric{}
+
+	return &MetricCollection{
+		Metrics: m,
+	}, nil
 }

@@ -99,7 +99,6 @@ func NewRptFromEnvironment() (*RptClient, error) {
 	// create objects
 
 	db1 := getDBClient(primaryHostType, primaryHost, primaryUser, primaryPass, primarySSLMode, primaryPortInt, l)
-
 	db2 := getDBClient(secondaryHostType, secondaryHost, secondaryUser, secondaryPass, secondarySSLMode, secondaryPortInt, l)
 
 	err = db1.Connect()
@@ -178,7 +177,7 @@ func (r *RptClient) Init() {
 	r.keepAlive = false
 
 	if r.API.ListenAddr != "" {
-		go r.API.Init(r.Operations, r.state, r.DBPrimary, r.DBSecondary)
+		go r.API.Init(r.Operations, r.state, r.DBPrimary, r.DBSecondary, r.Logger)
 		r.keepAlive = true
 	}
 

@@ -23,15 +23,17 @@ type APIServer struct {
 	secondary          DBClient
 	Server             *http.Server
 	state              chan *InternalStateChange
+	Logger             *Logger
 }
 
-// // FUNCTIONS
+// FUNCTIONS
 
-func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, primary DBClient, secondary DBClient) {
+func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, primary DBClient, secondary DBClient, l *Logger) {
 	a.Operations = c
 	a.state = s
 	a.primary = primary
 	a.secondary = secondary
+	a.Logger = l
 	a.lookupOperationSet = map[string]*DBOperationSet{}
 	a.Server = &http.Server{
 		Addr:    a.ListenAddr,
@@ -57,6 +59,7 @@ func (a *APIServer) SetupRoutes() {
 	workflowHandler := http.HandlerFunc(a.HandleWorkflow)
 	closeHandler := http.HandlerFunc(a.HandleClose)
 	queryHandler := http.HandlerFunc(a.HandleQuery)
+	metricsHandler := http.HandlerFunc(a.HandleMetrics)
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "health"), Middleware(healthHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "data/read"), Middleware(readDataHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "data/write"), Middleware(writeDataHandler))
@@ -74,6 +77,7 @@ func (a *APIServer) SetupRoutes() {
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "workflow"), Middleware(workflowHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "close"), Middleware(closeHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "query"), Middleware(queryHandler))
+	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "metrics"), Middleware(metricsHandler))
 }
 
 func (a *APIServer) AddOperationSet(dbo *DBOperationSet) {
@@ -223,6 +227,23 @@ func (a *APIServer) HandleOperation(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Println(err)
 		}
+
+	case http.MethodOptions:
+		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *APIServer) HandleMetrics(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("handleMetrics().")
+
+	switch r.Method {
+	case http.MethodGet:
+		// _, err := w.Write(ToJSON(a.Logger.))
+		// if err != nil {
+		// 	fmt.Println(err)
+		// }
 
 	case http.MethodOptions:
 		return
