@@ -25,9 +25,13 @@ func (l *Logger) WriteMetric(mc *MetricCollection) {
 	}
 }
 
-func (l *Logger) AddLogOutput(o *Output) {}
+func (l *Logger) AddLogOutput(o Output) {
+	l.LogOutputs = append(l.LogOutputs, o)
+}
 
-func (l *Logger) AddMetricOutput(o *Output) {}
+func (l *Logger) AddMetricOutput(o Output) {
+	l.MetricOutputs = append(l.MetricOutputs, o)
+}
 
 // OUTPUT
 
@@ -36,6 +40,10 @@ type Output interface {
 	WriteMetric(*MetricCollection)
 	Connect() error
 	GetDescription() string
+	resetMetrics()
+	resetLogs()
+	pullMetrics() *map[string]interface{}
+	pullLogs() *map[string]interface{}
 }
 
 // LOG
@@ -105,6 +113,10 @@ func (e *ElasticOutput) GetDescription() string {
 	return e.Description
 }
 
+func (e *ElasticOutput) resetLogs() {}
+
+func (e *ElasticOutput) resetMetrics() {}
+
 // FILE OUTPUT
 
 type FileOutput struct {
@@ -141,6 +153,10 @@ func (f *FileOutput) GetDescription() string {
 	return f.Description
 }
 
+func (f *FileOutput) resetLogs() {}
+
+func (f *FileOutput) resetMetrics() {}
+
 // CONSOLE OUTPUT
 
 type ConsoleOutput struct {
@@ -166,6 +182,78 @@ func (c *ConsoleOutput) Connect() error {
 func (c *ConsoleOutput) GetDescription() string {
 
 	return c.Description
+}
+
+func (c *ConsoleOutput) resetLogs() {}
+
+func (c *ConsoleOutput) resetMetrics() {}
+
+// PULL OUTPUT
+
+type PullOutput struct {
+	Description  string
+	CacheMetrics []*MetricCollection
+	CacheLogs    []*Log
+}
+
+func (p *PullOutput) WriteLog(l *Log) {
+	p.CacheLogs = append(p.CacheLogs, l)
+}
+
+func (p *PullOutput) WriteMetric(mc *MetricCollection) {
+	p.CacheMetrics = append(p.CacheMetrics, mc)
+}
+
+func (p *PullOutput) Connect() error {
+
+	// No implementation needed.
+
+	return nil
+}
+
+func (p *PullOutput) GetDescription() string {
+
+	return p.Description
+}
+
+func (p *PullOutput) resetMetrics() {
+	p.CacheMetrics = []*MetricCollection{}
+}
+
+func (p *PullOutput) resetLogs() {
+	p.CacheLogs = []*Log{}
+}
+
+func (p *PullOutput) pullMetrics() *map[string]interface{} {
+
+	output := &map[string]interface{}{
+		"Metrics": p.CacheMetrics,
+	}
+
+	p.resetMetrics()
+
+	return output
+}
+
+func (p *PullOutput) pullLogs() *map[string]interface{} {
+
+	output := &map[string]interface{}{
+		"Logs": p.CacheLogs,
+	}
+
+	p.resetLogs()
+
+	return output
+}
+
+func NewPullOutput() *PullOutput {
+	pull := &PullOutput{
+		Description:  "pull_output",
+		CacheLogs:    []*Log{},
+		CacheMetrics: []*MetricCollection{},
+	}
+
+	return pull
 }
 
 // METRIC

@@ -1,4 +1,5 @@
 export HOST_IP='10.0.0.247'
+export RPT_VER='0.0.6'
 
 docker run -d \
     --name rpt \
@@ -16,4 +17,4 @@ docker run -d \
     -e RPT_API=TRUE \
     -e RPT_API_BASEPATH='/api' \
     -e RPT_API_LISTEN_ADDR=':5000' \
-    chrishaylesnortal/rpt:0.0.3
+    chrishaylesnortal/rpt:$RPT_VER

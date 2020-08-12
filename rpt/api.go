@@ -39,6 +39,8 @@ func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, pr
 		Addr:    a.ListenAddr,
 		Handler: nil,
 	}
+	pull := NewPullOutput()
+	a.Logger.AddMetricOutput(pull)
 	a.SetupRoutes()
 	if err := a.Server.ListenAndServe(); err != nil {
 		fmt.Println(err)
@@ -240,10 +242,17 @@ func (a *APIServer) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		// _, err := w.Write(ToJSON(a.Logger.))
-		// if err != nil {
-		// 	fmt.Println(err)
-		// }
+		for _, o := range a.Logger.MetricOutputs {
+			if o.GetDescription() == "pull_output" {
+
+				fmt.Println("foundMetricOutput.")
+
+				_, err := w.Write(ToJSON(o.pullMetrics()))
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+		}
 
 	case http.MethodOptions:
 		return
