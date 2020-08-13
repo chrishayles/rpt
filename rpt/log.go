@@ -248,7 +248,7 @@ func NewConsoleOutput() *ConsoleOutput {
 func consoleOutputMetricProcessor(c *ConsoleOutput) {
 	for mc := range c.metricsToProcess {
 		for _, m := range mc.Metrics {
-			os.Stdout.WriteString(fmt.Sprintf("%s METRIC %s = %s\n", m.Timestamp.Format("20060102150405.000"), m.Label, fmt.Sprint(m.Value)))
+			os.Stdout.WriteString(fmt.Sprintf("%s METRIC %s = %s\n", m.Timestamp.Format("2006/01/02 15:04:05:000"), m.Label, fmt.Sprint(m.Value)))
 		}
 	}
 	log.Println("Closed metrics")
@@ -258,7 +258,7 @@ func consoleOutputLogProcessor(c *ConsoleOutput) {
 	for ls := range c.logsToProcess {
 		for _, le := range ls.Events {
 
-			msg := fmt.Sprintf("%s %s %s\n", le.Time.Format("20060102150405.000"), le.Level, le.Description)
+			msg := fmt.Sprintf("%s %s %s\n", le.Time.Format("2006/01/02 15:04:05:000"), le.Level, le.Description)
 
 			if le.Level == "ERROR" {
 				os.Stdout.WriteString(msg)

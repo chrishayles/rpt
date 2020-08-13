@@ -24,11 +24,14 @@ type APIServer struct {
 	Server             *http.Server
 	state              chan *InternalStateChange
 	Logger             *Logger
+
+	currentLog *Log
+	loglvl     string
 }
 
 // FUNCTIONS
 
-func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, primary DBClient, secondary DBClient, l *Logger) {
+func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, primary DBClient, secondary DBClient, l *Logger, lvl string) {
 	a.Operations = c
 	a.state = s
 	a.primary = primary
@@ -39,6 +42,8 @@ func (a *APIServer) Init(c chan *DBOperationSet, s chan *InternalStateChange, pr
 		Addr:    a.ListenAddr,
 		Handler: nil,
 	}
+	a.loglvl = lvl
+	a.newLog()
 	pull := NewPullOutput()
 	a.Logger.AddMetricOutput(pull)
 	a.SetupRoutes()
@@ -80,6 +85,14 @@ func (a *APIServer) SetupRoutes() {
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "close"), Middleware(closeHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "query"), Middleware(queryHandler))
 	http.Handle(fmt.Sprintf("%s/%s", a.BasePath, "metrics"), Middleware(metricsHandler))
+}
+
+func (a *APIServer) newLog() {
+	if a.currentLog != nil {
+		a.Logger.WriteLog(a.currentLog)
+	}
+
+	a.currentLog = NewLog(a.loglvl, "api_log")
 }
 
 func (a *APIServer) AddOperationSet(dbo *DBOperationSet) {

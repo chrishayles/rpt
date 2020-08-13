@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type RptClient struct {
@@ -15,11 +14,14 @@ type RptClient struct {
 	Operations  chan *DBOperationSet
 	API         APIServer
 	Logger      *Logger
-	keepAlive   bool
-	state       chan *InternalStateChange
+
+	currentLog *Log
+	loglvl     string
+	keepAlive  bool
+	state      chan *InternalStateChange
 }
 
-func NewRpt(primary, secondary DBClient) (*RptClient, error) {
+func NewRpt(primary, secondary DBClient, loglvl string) (*RptClient, error) {
 	c := make(chan *DBOperationSet, 50)
 	s := make(chan *InternalStateChange, 3)
 	return &RptClient{
@@ -28,6 +30,7 @@ func NewRpt(primary, secondary DBClient) (*RptClient, error) {
 		Operations:  c,
 		state:       s,
 		keepAlive:   false,
+		loglvl:      loglvl,
 	}, nil
 }
 
@@ -59,6 +62,8 @@ func NewRptFromEnvironment() (*RptClient, error) {
 	apiBasePath := os.Getenv("RPT_API_BASEPATH")         //defaults to api
 	apiListenAddress := os.Getenv("RPT_API_LISTEN_ADDR") //defaults to localhost:5000
 
+	rptLogLvl := os.Getenv("RPT_LOG_LVL") //defaults to INFO
+
 	log.Println(primaryHost)
 	log.Println(primaryHostType)
 
@@ -72,6 +77,10 @@ func NewRptFromEnvironment() (*RptClient, error) {
 
 	if secondaryPort == "" {
 		secondaryPort = "5432"
+	}
+
+	if rptLogLvl == "" {
+		rptLogLvl = "INFO"
 	}
 
 	// validate
@@ -111,8 +120,9 @@ func NewRptFromEnvironment() (*RptClient, error) {
 	}
 
 	dbo := newDBOperationSet(nil)
-	r, err := NewRpt(db1, db2)
+	r, err := NewRpt(db1, db2, rptLogLvl)
 	r.Logger = l
+	r.newLog()
 
 	if seedFile != "" {
 		ds, errs := ImportDBDataSet(seedFile)
@@ -174,39 +184,37 @@ func validateAPI(api, base, addr string) *APIServer {
 
 func (r *RptClient) Init() {
 
+	r.currentLog.Debugf("RPT client initialized")
+
 	r.keepAlive = false
+	r.currentLog.Debugf("keepAlive set to false")
 
 	if r.API.ListenAddr != "" {
-		go r.API.Init(r.Operations, r.state, r.DBPrimary, r.DBSecondary, r.Logger)
+		r.currentLog.Debugf("Initializing API")
+		go r.API.Init(r.Operations, r.state, r.DBPrimary, r.DBSecondary, r.Logger, r.loglvl)
 		r.keepAlive = true
+		r.currentLog.Debugf("keepAlive set to true")
 	}
 
 	go r.ListenForStateChange()
 	go r.Process()
 
+	r.currentLog.Debugf("Creating console output")
 	oot := NewConsoleOutput()
 	oot.Connect()
-
 	r.Logger.AddLogOutput(oot)
 
-	QuickDebug("Test debug", r.Logger)
-	time.Sleep(100 * time.Millisecond)
-
-	QuickInfo("Test info", r.Logger)
-	time.Sleep(100 * time.Millisecond)
-
-	QuickWarn("Test warn", r.Logger)
-	time.Sleep(100 * time.Millisecond)
-
-	QuickError("Test error", r.Logger)
-	time.Sleep(time.Second * 5)
-
+	r.currentLog.Debugf("Entering keepAlive loop")
+	r.state <- newInternalState("cycle_log")
 	for r.keepAlive == true {
 		// Hold your horses.
 	}
+	r.currentLog.Debugf("Leaving keepAlive loop and exiting application")
+	r.state <- newInternalState("cycle_log")
 }
 
 func (r *RptClient) Process() {
+	r.currentLog.Debugf("Initializing RPT client operation processing")
 	for opSet := range r.Operations {
 
 		for _, op := range opSet.Operations {
@@ -217,9 +225,11 @@ func (r *RptClient) Process() {
 
 		log.Println(string(ToJSON(opSet)))
 	}
+	r.currentLog.Debugf("RPT client operation processing exited")
 }
 
 func (r *RptClient) ListenForStateChange() {
+	r.currentLog.Debugf("Initializing internal state change listener")
 	waitingForShutdown := false
 
 	for sc := range r.state {
@@ -243,9 +253,24 @@ func (r *RptClient) ListenForStateChange() {
 			log.Println("Received PROCESSING COMPLETE")
 		}
 
+		if sc.NewState == "cycle_log" {
+			r.currentLog.Debugf("State change cycle_log received")
+			r.newLog()
+		}
+
 	}
 
+	r.currentLog.Debugf("Exiting state change listener and setting keepAlive to false")
 	r.keepAlive = false
+}
+
+func (r *RptClient) newLog() {
+	if r.currentLog != nil {
+		r.currentLog.Debugf("Writing log to outputs")
+		r.Logger.WriteLog(r.currentLog)
+	}
+	r.currentLog = NewLog(r.loglvl, "api_log")
+	r.currentLog.Debugf("New log created")
 }
 
 func getDBClient(clientType, host, user, password, ssl string, port int, logger *Logger) DBClient {
