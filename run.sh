@@ -1,5 +1,5 @@
 bash runpsql.sh
 
-sleep 2
+sleep 5s
 
 bash runrpt.sh

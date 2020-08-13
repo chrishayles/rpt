@@ -2,6 +2,8 @@ package rpt
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -13,9 +15,9 @@ type Logger struct {
 	MetricOutputs []Output
 }
 
-func (l *Logger) WriteLog(log *Log) {
+func (l *Logger) WriteLog(lg *Log) {
 	for _, o := range l.LogOutputs {
-		o.WriteLog(log)
+		o.WriteLog(lg)
 	}
 }
 
@@ -39,6 +41,7 @@ type Output interface {
 	WriteLog(*Log)
 	WriteMetric(*MetricCollection)
 	Connect() error
+	Done()
 	GetDescription() string
 	resetMetrics()
 	resetLogs()
@@ -90,8 +93,19 @@ func (l *Log) logf(level string, format string, v ...interface{}) {
 	})
 }
 
-func NewLog(level, description string) (*Log, error) {
-	return nil, nil
+func NewLog(level, description string) *Log {
+
+	if level != "DEBUG" && level != "INFO" && level != "WARN" && level != "ERROR" {
+		return nil
+	}
+
+	output := &Log{
+		Level:       level,
+		Description: description,
+		Events:      make([]*LogEvent, 0),
+	}
+
+	return output
 }
 
 // ELASTIC OUTPUT
@@ -109,6 +123,8 @@ func (e *ElasticOutput) Connect() error {
 	return nil
 }
 
+func (e *ElasticOutput) Done() {}
+
 func (e *ElasticOutput) GetDescription() string {
 	return e.Description
 }
@@ -116,6 +132,10 @@ func (e *ElasticOutput) GetDescription() string {
 func (e *ElasticOutput) resetLogs() {}
 
 func (e *ElasticOutput) resetMetrics() {}
+
+func (e *ElasticOutput) pullLogs() *map[string]interface{} { return nil }
+
+func (e *ElasticOutput) pullMetrics() *map[string]interface{} { return nil }
 
 // FILE OUTPUT
 
@@ -149,6 +169,8 @@ func (f *FileOutput) Connect() error {
 	return nil
 }
 
+func (f *FileOutput) Done() {}
+
 func (f *FileOutput) GetDescription() string {
 	return f.Description
 }
@@ -157,26 +179,37 @@ func (f *FileOutput) resetLogs() {}
 
 func (f *FileOutput) resetMetrics() {}
 
+func (f *FileOutput) pullLogs() *map[string]interface{} { return nil }
+
+func (f *FileOutput) pullMetrics() *map[string]interface{} { return nil }
+
 // CONSOLE OUTPUT
 
 type ConsoleOutput struct {
-	Description string
-	ToProcess   chan *Log
+	Description      string
+	logsToProcess    chan *Log
+	metricsToProcess chan *MetricCollection
 }
 
 func (c *ConsoleOutput) WriteLog(l *Log) {
-
+	c.logsToProcess <- l
 }
 
-func (c *ConsoleOutput) WriteMetric(l *MetricCollection) {
-
+func (c *ConsoleOutput) WriteMetric(mc *MetricCollection) {
+	c.metricsToProcess <- mc
 }
 
 func (c *ConsoleOutput) Connect() error {
 
-	// No implementation needed.
+	go consoleOutputMetricProcessor(c)
+	go consoleOutputLogProcessor(c)
 
 	return nil
+}
+
+func (c *ConsoleOutput) Done() {
+	close(c.logsToProcess)
+	close(c.metricsToProcess)
 }
 
 func (c *ConsoleOutput) GetDescription() string {
@@ -184,9 +217,58 @@ func (c *ConsoleOutput) GetDescription() string {
 	return c.Description
 }
 
-func (c *ConsoleOutput) resetLogs() {}
+func (c *ConsoleOutput) resetLogs() {
+	//not implemented
+}
 
-func (c *ConsoleOutput) resetMetrics() {}
+func (c *ConsoleOutput) resetMetrics() {
+	//not implemented
+}
+
+func (c *ConsoleOutput) pullLogs() *map[string]interface{} {
+	//not implemented
+	return nil
+}
+
+func (c *ConsoleOutput) pullMetrics() *map[string]interface{} {
+	//not implemented
+	return nil
+}
+
+func NewConsoleOutput() *ConsoleOutput {
+	output := &ConsoleOutput{
+		Description:      "console_output",
+		logsToProcess:    make(chan *Log, 20),
+		metricsToProcess: make(chan *MetricCollection, 20),
+	}
+
+	return output
+}
+
+func consoleOutputMetricProcessor(c *ConsoleOutput) {
+	for mc := range c.metricsToProcess {
+		for _, m := range mc.Metrics {
+			os.Stdout.WriteString(fmt.Sprintf("%s METRIC %s = %s\n", m.Timestamp.Format("20060102150405.000"), m.Label, fmt.Sprint(m.Value)))
+		}
+	}
+	log.Println("Closed metrics")
+}
+
+func consoleOutputLogProcessor(c *ConsoleOutput) {
+	for ls := range c.logsToProcess {
+		for _, le := range ls.Events {
+
+			msg := fmt.Sprintf("%s %s %s\n", le.Time.Format("20060102150405.000"), le.Level, le.Description)
+
+			if le.Level == "ERROR" {
+				os.Stdout.WriteString(msg)
+			} else {
+				os.Stderr.WriteString(msg)
+			}
+		}
+	}
+	log.Println("Closed logs")
+}
 
 // PULL OUTPUT
 
@@ -209,6 +291,11 @@ func (p *PullOutput) Connect() error {
 	// No implementation needed.
 
 	return nil
+}
+
+func (p *PullOutput) Done() {
+	p.resetLogs()
+	p.resetMetrics()
 }
 
 func (p *PullOutput) GetDescription() string {
@@ -279,4 +366,28 @@ func NewMetricCollection() (*MetricCollection, error) {
 	return &MetricCollection{
 		Metrics: m,
 	}, nil
+}
+
+func QuickDebug(msg string, l *Logger) {
+	quickLog := NewLog("DEBUG", "quick_log")
+	quickLog.Debugf("%s", msg)
+	l.WriteLog(quickLog)
+}
+
+func QuickInfo(msg string, l *Logger) {
+	quickLog := NewLog("INFO", "quick_log")
+	quickLog.Infof("%s", msg)
+	l.WriteLog(quickLog)
+}
+
+func QuickWarn(msg string, l *Logger) {
+	quickLog := NewLog("WARN", "quick_log")
+	quickLog.Warnf("%s", msg)
+	l.WriteLog(quickLog)
+}
+
+func QuickError(msg string, l *Logger) {
+	quickLog := NewLog("ERROR", "quick_log")
+	quickLog.Errorf("%s", msg)
+	l.WriteLog(quickLog)
 }

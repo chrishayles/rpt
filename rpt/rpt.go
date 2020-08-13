@@ -184,14 +184,21 @@ func (r *RptClient) Init() {
 	go r.ListenForStateChange()
 	go r.Process()
 
-	go func() {
-		result, err := r.DBPrimary.ListDB()
-		if err != nil {
-			log.Println(err)
-		}
-		log.Println(string(ToJSON(result)))
-	}()
+	oot := NewConsoleOutput()
+	oot.Connect()
 
+	r.Logger.AddLogOutput(oot)
+
+	QuickDebug("Test debug", r.Logger)
+	time.Sleep(100 * time.Millisecond)
+
+	QuickInfo("Test info", r.Logger)
+	time.Sleep(100 * time.Millisecond)
+
+	QuickWarn("Test warn", r.Logger)
+	time.Sleep(100 * time.Millisecond)
+
+	QuickError("Test error", r.Logger)
 	time.Sleep(time.Second * 5)
 
 	for r.keepAlive == true {

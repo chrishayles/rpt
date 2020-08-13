@@ -1,7 +1,7 @@
-export HOST_IP='10.0.0.247'
-export RPT_VER='0.0.6'
+export HOST_IP='192.168.67.11'
+export RPT_VER='0.0.16'
 
-docker run -d \
+docker run -it \
     --name rpt \
     -p 5000:5000 \
     -e RPT_PRIMARY_HOST=postgres:$HOST_IP \
